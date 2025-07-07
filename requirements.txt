@@ -1,6 +1,7 @@
 streamlit==1.26.0
 opencv-python==4.7.0.72
-dlib==19.24.0
+git+https://github.com/RohanB-dev/dlib-linux-prebuilt.git
 numpy
 pandas
 Pillow
+
