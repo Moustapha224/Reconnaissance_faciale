@@ -11,7 +11,7 @@ import bz2
 SHAPE_PREDICTOR_URL = "http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2"
 FACE_ENCODER_URL = "http://dlib.net/files/dlib_face_recognition_resnet_model_v1.dat.bz2"
 SHAPE_PREDICTOR_FILE = "shape_predictor_68_face_landmarks.dat"
-FACE_ENCODER_FILE = "dlib_face_recognition_model_v1.dat"
+FACE_ENCODER_FILE = "dlib_face_recognition_resnet_model_v1.dat"
 
 
 # ========== TÉLÉCHARGEMENT DES MODÈLES ==========
@@ -43,12 +43,16 @@ except Exception as e:
 def get_face_encodings(image):
     if image is None or image.size == 0:
         raise ValueError("L'image transmise est vide ou invalide.")
-    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    dets = face_detector(rgb, 1)
+    if image.ndim != 3 or image.shape[2] != 3:
+        raise ValueError("Image invalide : doit être RGB avec 3 canaux.")
+    if image.dtype != np.uint8:
+        raise ValueError("Image invalide : doit être en format 8-bit uint8.")
+
+    dets = face_detector(image, 1)
     encodings = []
     for det in dets:
-        shape = shape_predictor(rgb, det)
-        face_descriptor = face_encoder.compute_face_descriptor(rgb, shape)
+        shape = shape_predictor(image, det)
+        face_descriptor = face_encoder.compute_face_descriptor(image, shape)
         encodings.append(np.array(face_descriptor))
     return encodings, dets
 
@@ -61,7 +65,6 @@ img_file_buffer = st.camera_input("📸 Prenez une photo")
 
 if img_file_buffer is not None:
     try:
-        # Ouverture de l'image
         image = Image.open(img_file_buffer).convert('RGB')
         img_np = np.array(image)
 
@@ -69,18 +72,26 @@ if img_file_buffer is not None:
             st.warning("⚠️ L'image capturée est vide.")
             st.stop()
 
-        img_bgr = img_np[:, :, ::-1]  # RGB -> BGR
-        st.write("✅ Image bien chargée. Dimensions :", img_bgr.shape)
+        # ✅ Conversion en uint8 si besoin
+        if img_np.dtype != np.uint8:
+            if img_np.max() <= 1.0:
+                img_np = (img_np * 255).astype(np.uint8)
+            else:
+                img_np = img_np.astype(np.uint8)
+
+        rgb_image = img_np  # reste en RGB (pas de conversion en BGR ici)
+
+        st.write("✅ Image bien chargée. Dimensions :", rgb_image.shape)
 
         # Détection des visages
-        encodings, dets = get_face_encodings(img_bgr)
+        encodings, dets = get_face_encodings(rgb_image)
 
-        # Annotation de l'image
+        # Annotation
         for det in dets:
             x1, y1, x2, y2 = det.left(), det.top(), det.right(), det.bottom()
-            cv2.rectangle(img_bgr, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.rectangle(rgb_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-        st.image(cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB), caption=f"{len(dets)} visage(s) détecté(s)")
+        st.image(rgb_image, caption=f"{len(dets)} visage(s) détecté(s)")
 
     except Exception as e:
         st.error(f"❌ Une erreur est survenue : {e}")
