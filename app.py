@@ -47,7 +47,7 @@ def get_face_encoding(image):
     return np.array(face_encoder.compute_face_descriptor(image, shape))
 
 # ========== CHARGEMENT DES VISAGES CONNUS ==========
-KNOWN_FACES_DIR = "known_faces"
+KNOWN_FACES_DIR = "Known_faces"
 known_encodings = []
 known_names = []
 
